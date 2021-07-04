@@ -73,7 +73,8 @@ class Downloader():
 if __name__ == "__main__":
 
     nasa_website = "https://firms.modaps.eosdis.nasa.gov"
-    save_folder = Path("/Users/puzhao/PyProjects/firms-active-fire/outputs")
+    save_folder = Path("D://firms-active-fire/outputs")
+    if not os.path.exists(save_folder): os.makedirs(save_folder)
     
     firms = [
         "/data/active_fire/modis-c6.1/shapes/zips/MODIS_C6_1_Global_24h.zip",
@@ -92,18 +93,18 @@ if __name__ == "__main__":
             url = url.replace("24h", period_key)
             filename = os.path.split(url)[-1][:-4]
 
-            # downloader = Downloader()
-            # downloader.download(url, save_folder)
+            downloader = Downloader()
+            downloader.download(url, save_folder)
             # # downloader.un_zip(save_folder / f"{filename}.zip")
 
-            asset_id = f"users/omegazhangpzh/NRT_AF/{filename}"
+            asset_id = f"users/omegazhangpzh/NRT_AF_V1/{filename}"
             print(f"\n{asset_id}")
 
             upload_to_bucket = f"gsutil -m cp -r {save_folder}/{filename}.zip gs://eo4wildfire/active_fire/{filename}.zip"
             # remove_asset = f"earthengine rm {asset_id}"
             ee_upload_table = f"earthengine upload table --force --asset_id={asset_id} gs://eo4wildfire/active_fire/{filename}.zip"
 
-            # os.system(upload_to_bucket)
+            os.system(upload_to_bucket)
             # if asset_id in asset_list:
             #     os.system(remove_asset)
             
@@ -120,6 +121,7 @@ if __name__ == "__main__":
     while(not upload_finish_flag):
         time.sleep(10) # delay 30s
         
+        upload_finish_flag = True
         for filename in task_dict.keys():
 
             task_id = task_dict[filename]['id']
@@ -128,19 +130,22 @@ if __name__ == "__main__":
             state = status[1].split("\n")[1].split(": ")[-1]
             task_dict[filename].update({'state': state})
 
-            upload_finish_flag = upload_finish_flag and (state == "COMPLETED")
+            if state == "COMPLETED":
+                os.system(f"earthengine acl set public {asset_id}")
+            else:
+                upload_finish_flag = False
 
         print()
         pprint(task_dict)
 
-    # set asset public
-    if upload_finish_flag:
-        NRT_AF = subprocess.getstatusoutput("earthengine ls users/omegazhangpzh/NRT_AF/")
-        asset_list = NRT_AF[1].replace("projects/earthengine-legacy/assets/", "").split("\n")
+    # # set asset public
+    # if upload_finish_flag:
+    #     NRT_AF = subprocess.getstatusoutput("earthengine ls users/omegazhangpzh/NRT_AF/")
+    #     asset_list = NRT_AF[1].replace("projects/earthengine-legacy/assets/", "").split("\n")
 
-        for asset in asset_list:
-            os.system(f"earthengine acl set public {asset_id}")
-            os.system(f"earthengine acl get {asset_id}")
+    #     for asset in asset_list:
+    #         os.system(f"earthengine acl set public {asset_id}")
+    #         os.system(f"earthengine acl get {asset_id}")
             
 
 
