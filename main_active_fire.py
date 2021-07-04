@@ -73,7 +73,8 @@ class Downloader():
 if __name__ == "__main__":
 
     nasa_website = "https://firms.modaps.eosdis.nasa.gov"
-    save_folder = Path("D://firms-active-fire/outputs")
+    # save_folder = Path("D://firms-active-fire/outputs")
+    save_folder = Path(os.getcwd()) / "outputs"
     if not os.path.exists(save_folder): os.makedirs(save_folder)
     
     firms = [
