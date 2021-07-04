@@ -69,9 +69,7 @@ class Downloader():
             zip_file.extract(names, unzip_folder)
         zip_file.close()
 
-
-if __name__ == "__main__":
-
+def upadte_active_fire():
     nasa_website = "https://firms.modaps.eosdis.nasa.gov"
     # save_folder = Path("D://firms-active-fire/outputs")
     save_folder = Path(os.getcwd()) / "outputs"
@@ -147,7 +145,31 @@ if __name__ == "__main__":
     #     for asset in asset_list:
     #         os.system(f"earthengine acl set public {asset_id}")
     #         os.system(f"earthengine acl get {asset_id}")
-            
+
+def set_AF_date(feat): 
+    return feat.set("af_date", ee.Date(feat.get("ACQ_DATE")).format().slice(0,19))
+
+if __name__ == "__main__":
+
+    from datetime import datetime
+    now = datetime.now()
+    current_time =  datetime.now()
+
+    if int(current_time.strptime(":")[0]) % 3 == 0:
+        
+        upadte_active_fire()
+
+        AF_SUOMI_VIIRS = ee.FeatureCollection("users/omegazhangpzh/NRT_AF/SUOMI_VIIRS_C2_Global_24h")
+        AF = AF_SUOMI_VIIRS.map(set_AF_date)
+
+        print(f"------------------> update time: {current_time} <-------------------")
+        print(AF.aggregate_array("af_date").distinct().getInfo())
+
+
+        
+
+        
+                
 
 
 
