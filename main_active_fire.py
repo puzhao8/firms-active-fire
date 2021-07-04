@@ -7,6 +7,7 @@ import zipfile
 from pathlib import Path
 from prettyprinter import pprint
 
+ee.Initialize()
 import logging
 logger = logging.getLogger(__name__)
 
@@ -153,18 +154,27 @@ def set_AF_date(feat):
 if __name__ == "__main__":
 
     from datetime import datetime
-    now = datetime.now()
-    current_time =  datetime.now()
 
-    if int(current_time.strptime(":")[0]) % 3 == 0:
-        
-        upadte_active_fire()
+    while(True):
+        time.sleep(60*60) # sleep 1h
+
+        now = datetime.now()
+        current_time =  datetime.now().strftime("%H:%M:%S")
+
+        # time_split = current_time.split(":")
+        # print(time_split)
+    
+        # if (int(time_split[0]) % 3 == 0) and (int(time_split[1])==0) and (int(time_split[2])==0):
+            
+            # upadte_active_fire()
 
         AF_SUOMI_VIIRS = ee.FeatureCollection("users/omegazhangpzh/NRT_AF/SUOMI_VIIRS_C2_Global_24h")
         AF = AF_SUOMI_VIIRS.map(set_AF_date)
 
-        print(f"------------------> update time: {current_time} <-------------------")
-        print(AF.aggregate_array("af_date").distinct().getInfo())
+        print(f"\n------------------> update time: {current_time} <-------------------")
+        print(AF.aggregate_array("af_date").distinct().sort().getInfo()[-1])
+
+
 
 
         
