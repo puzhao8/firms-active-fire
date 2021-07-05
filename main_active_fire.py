@@ -85,10 +85,10 @@ def upadte_active_fire():
 
     NRT_AF = subprocess.getstatusoutput("earthengine ls users/omegazhangpzh/NRT_AF/")
     asset_list = NRT_AF[1].replace("projects/earthengine-legacy/assets/", "").split("\n")
-    pprint(asset_list)
+    # pprint(asset_list)
 
     task_dict = {}
-    for period_key in ['24h', '48h', '7d']:
+    for period_key in ['24h']:
         for i in range(len(firms)):
             url = nasa_website + firms[i]
             url = url.replace("24h", period_key)
@@ -98,7 +98,7 @@ def upadte_active_fire():
             downloader.download(url, save_folder)
             # # downloader.un_zip(save_folder / f"{filename}.zip")
 
-            asset_id = f"users/omegazhangpzh/NRT_AF_V1/{filename}"
+            asset_id = f"users/omegazhangpzh/NRT_AF/{filename}"
             print(f"\n{asset_id}")
 
             upload_to_bucket = f"gsutil -m cp -r {save_folder}/{filename}.zip gs://eo4wildfire/active_fire/{filename}.zip"
@@ -156,8 +156,6 @@ if __name__ == "__main__":
     from datetime import datetime
 
     while(True):
-        time.sleep(60*60) # sleep 1h
-
         now = datetime.now()
         current_time =  datetime.now().strftime("%H:%M:%S")
 
@@ -166,13 +164,15 @@ if __name__ == "__main__":
     
         # if (int(time_split[0]) % 3 == 0) and (int(time_split[1])==0) and (int(time_split[2])==0):
             
-            # upadte_active_fire()
+        upadte_active_fire()
 
         AF_SUOMI_VIIRS = ee.FeatureCollection("users/omegazhangpzh/NRT_AF/SUOMI_VIIRS_C2_Global_24h")
         AF = AF_SUOMI_VIIRS.map(set_AF_date)
 
         print(f"\n------------------> update time: {current_time} <-------------------")
         print(AF.aggregate_array("af_date").distinct().sort().getInfo()[-1])
+
+        time.sleep(60*60) # sleep 1h
 
 
 
