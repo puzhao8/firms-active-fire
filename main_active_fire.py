@@ -177,12 +177,12 @@ if __name__ == "__main__":
 
 
 
-        
+    
 
         
                 
-
-
+# earthengine upload table --force --asset_id=users/omegazhangpzh/NRT_AF/kamploop gs://eo4wildfire/active_fire/kamploop.zip
+# earthengine create folder projects/my-ee-enabled-project-id/assets/
 
 # os.system(f"earthengine rm {asset_id}")
 # os.system(f"earthengine upload table --asset_id={asset_id} gs://eo4wildfire/active_fire/{filename}.zip")
