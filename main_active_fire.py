@@ -1,3 +1,7 @@
+from http.client import responses
+import json
+from easydict import EasyDict as edict
+from ntpath import join
 import ee
 import os, sys
 import time
@@ -8,69 +12,12 @@ from pathlib import Path
 from prettyprinter import pprint
 
 ee.Initialize()
-import logging
-logger = logging.getLogger(__name__)
 
-class Downloader():
-    def __init__(self):
-        pass
-
-    def download(self, url, save_folder):
-        print(url)
-
-        save_name = os.path.split(url)[-1]
-
-        self.url = url
-        self.dst = Path(save_folder) / save_name
-        self.save_folder = Path(os.path.split(self.dst)[0])
-        self.unzip_folder = self.save_folder / "unzipped"
-
-        logging.basicConfig(
-            format='%(asctime)s %(levelname)s %(message)s',
-            level=logging.INFO,
-            stream=sys.stdout)   
-
-        if os.path.isfile(self.dst):
-            os.system("rm {}".format(self.dst))
-            logging.info("Existed file deleted: {}".format(self.dst))
-        else:
-            logging.info("File doesn't exist.")
-        # replace with url you need
-
-        # if dir 'dir_name/' doesn't exist
-        if not os.path.exists(self.save_folder):
-            logging.info("Make direction: {}".format(self.save_folder))
-            os.mkdir(self.save_folder)
-
-        def down(_save_path, _url):
-            try:
-                Request.urlretrieve(_url, _save_path)
-                return True
-            except:
-                print('\nError when retrieving the URL:\n{}'.format(_url))
-                return False
-
-        # logging.info("Downloading file.")
-        down(self.dst, self.url)
-        print("------- Download Finished! ---------\n")
+from download import Downloader
+from check_asset_public import check_asset_permission
 
 
-    def un_zip(self, src):
-        save_folder = Path(os.path.split(src)[0])
-    
-        unzip_folder = save_folder / "unzipped" / os.path.split(src)[-1][:-4]
-
-        """ unzip zip file """
-        zip_file = zipfile.ZipFile(src)
-        if os.path.isdir(unzip_folder):
-            pass
-        else:
-            os.mkdir(unzip_folder)
-        for names in zip_file.namelist():
-            zip_file.extract(names, unzip_folder)
-        zip_file.close()
-
-def upadte_active_fire():
+def upadte_active_fire(period_list = ['24h']):
     nasa_website = "https://firms.modaps.eosdis.nasa.gov"
     # save_folder = Path("D://firms-active-fire/outputs")
     save_folder = Path(os.getcwd()) / "outputs"
@@ -84,11 +31,12 @@ def upadte_active_fire():
     ]
 
     NRT_AF = subprocess.getstatusoutput("earthengine ls users/omegazhangpzh/NRT_AF/")
-    asset_list = NRT_AF[1].replace("projects/earthengine-legacy/assets/", "").split("\n")
     # pprint(asset_list)
 
+    """ Download and Upload into GEE """
+    print("=============> Download and Upload into GEE <===============")
     task_dict = {}
-    for period_key in ['24h']:
+    for period_key in period_list: # '48h', '7d
         for i in range(len(firms)):
             url = nasa_website + firms[i]
             url = url.replace("24h", period_key)
@@ -99,7 +47,7 @@ def upadte_active_fire():
             # # downloader.un_zip(save_folder / f"{filename}.zip")
 
             asset_id = f"users/omegazhangpzh/NRT_AF/{filename}"
-            print(f"\n{asset_id}")
+            
 
             upload_to_bucket = f"gsutil -m cp -r {save_folder}/{filename}.zip gs://eo4wildfire/active_fire/{filename}.zip"
             # remove_asset = f"earthengine rm {asset_id}"
@@ -111,24 +59,32 @@ def upadte_active_fire():
             
             # os.system(ee_upload_table)
 
-            ee_upload_status = subprocess.getstatusoutput(ee_upload_table)
-            task_id = ee_upload_status[1].split("ID: ")[-1]
+            ee_upload_response = subprocess.getstatusoutput(ee_upload_table)[1]
+            task_id = ee_upload_response.split("ID: ")[-1]
             task_dict.update({filename: {'id': task_id}})
 
-            pprint(task_id)
+            print(f"\n{asset_id}")
+            pprint(f"task id: {task_id}")
 
-    # check uplpad status
+
+    """ check uplpad status """
+    print("=============> check uplpad status <===============")
     upload_finish_flag = False
     while(not upload_finish_flag):
+        print("-------------------------------------------------------")
         time.sleep(10) # delay 30s
         
         upload_finish_flag = True
         for filename in task_dict.keys():
 
+            asset_id = f"users/omegazhangpzh/NRT_AF/{filename}"
             task_id = task_dict[filename]['id']
+
             check_upload_status = f"earthengine task info {task_id}"
-            status = subprocess.getstatusoutput(check_upload_status)
-            state = status[1].split("\n")[1].split(": ")[-1]
+            response = subprocess.getstatusoutput(check_upload_status)[1]
+            state = response.split("\n")[1].split(": ")[-1]
+            # state = edict(json.loads(response))['state']
+
             task_dict[filename].update({'state': state})
 
             if state == "COMPLETED":
@@ -136,20 +92,25 @@ def upadte_active_fire():
             else:
                 upload_finish_flag = False
 
+            # check_asset_permission(asset_id)
+            print(f"{asset_id}: {state}")
+
         print()
-        pprint(task_dict)
+        # pprint(task_dict)
 
-    # # set asset public
-    # if upload_finish_flag:
-    #     NRT_AF = subprocess.getstatusoutput("earthengine ls users/omegazhangpzh/NRT_AF/")
-    #     asset_list = NRT_AF[1].replace("projects/earthengine-legacy/assets/", "").split("\n")
+    
+    """ set asset public """
+    print("=============> set asset public <===============")
+    asset_list = NRT_AF[1].replace("projects/earthengine-legacy/assets/", "").split("\n")
+    for asset_id in asset_list:
+        public_flag = check_asset_permission(asset_id)
+        if not public_flag: 
+            os.system(f"earthengine acl set public {asset_id}")
 
-    #     for asset in asset_list:
-    #         os.system(f"earthengine acl set public {asset_id}")
-    #         os.system(f"earthengine acl get {asset_id}")
 
 def set_AF_date(feat): 
     return feat.set("af_date", ee.Date(feat.get("ACQ_DATE")).format().slice(0,19))
+
 
 if __name__ == "__main__":
 
@@ -159,20 +120,22 @@ if __name__ == "__main__":
         now = datetime.now()
         current_time =  datetime.now().strftime("%H:%M:%S")
 
-        # time_split = current_time.split(":")
-        # print(time_split)
-    
-        # if (int(time_split[0]) % 3 == 0) and (int(time_split[1])==0) and (int(time_split[2])==0):
+        if current_time == "07:00:00":
             
-        upadte_active_fire()
+            # time_split = current_time.split(":")
+            # print(time_split)
+        
+            # if (int(time_split[0]) % 3 == 0) and (int(time_split[1])==0) and (int(time_split[2])==0):
+                
+            upadte_active_fire(period_list=['48h'])
 
-        AF_SUOMI_VIIRS = ee.FeatureCollection("users/omegazhangpzh/NRT_AF/SUOMI_VIIRS_C2_Global_24h")
-        AF = AF_SUOMI_VIIRS.map(set_AF_date)
+            AF_SUOMI_VIIRS = ee.FeatureCollection("users/omegazhangpzh/NRT_AF/SUOMI_VIIRS_C2_Global_24h")
+            AF = AF_SUOMI_VIIRS.map(set_AF_date)
 
-        print(f"\n------------------> update time: {current_time} <-------------------")
-        print(AF.aggregate_array("af_date").distinct().sort().getInfo()[-1])
+            print(f"\n------------------> update time: {current_time} <-------------------")
+            print(AF.aggregate_array("af_date").distinct().sort().getInfo()[-1])
 
-        time.sleep(60*60) # sleep 1h
+            # time.sleep(60*60) # sleep 1h
 
 
 
@@ -181,15 +144,3 @@ if __name__ == "__main__":
 
         
                 
-# earthengine upload table --force --asset_id=users/omegazhangpzh/NRT_AF/kamploop gs://eo4wildfire/active_fire/kamploop.zip
-# earthengine create folder projects/my-ee-enabled-project-id/assets/
-
-# os.system(f"earthengine rm {asset_id}")
-# os.system(f"earthengine upload table --asset_id={asset_id} gs://eo4wildfire/active_fire/{filename}.zip")
-
-# earthengine task info 4DYDKYYRRHHRH3JVSLDZ63N5
-
-# earthengine acl get users/username/asset_id
-# earthengine acl set public users/username/asset_id
-# earthengine acl ch -u username@gmail.com:R users/username/asset_id
-# /Users/puzhao/PyProjects/firms-active-fire/outputs/MODIS_C6_1_Global_24h.zip
