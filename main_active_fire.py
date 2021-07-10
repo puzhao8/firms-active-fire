@@ -116,26 +116,26 @@ if __name__ == "__main__":
 
     from datetime import datetime
 
-    while(True):
-        now = datetime.now()
-        current_time =  datetime.now().strftime("%H:%M:%S")
+    # while(True):
+    now = datetime.now()
+    current_time =  datetime.now().strftime("%H:%M:%S")
 
-        if current_time == "07:00:00":
-            
-            # time_split = current_time.split(":")
-            # print(time_split)
+    # if current_time == "07:00:00":
         
-            # if (int(time_split[0]) % 3 == 0) and (int(time_split[1])==0) and (int(time_split[2])==0):
-                
-            upadte_active_fire(period_list=['48h'])
+        # time_split = current_time.split(":")
+        # print(time_split)
+    
+        # if (int(time_split[0]) % 3 == 0) and (int(time_split[1])==0) and (int(time_split[2])==0):
+            
+    upadte_active_fire(period_list=['24h', '7d', '48h'])
 
-            AF_SUOMI_VIIRS = ee.FeatureCollection("users/omegazhangpzh/NRT_AF/SUOMI_VIIRS_C2_Global_24h")
-            AF = AF_SUOMI_VIIRS.map(set_AF_date)
+    AF_SUOMI_VIIRS = ee.FeatureCollection("users/omegazhangpzh/NRT_AF/SUOMI_VIIRS_C2_Global_24h")
+    AF = AF_SUOMI_VIIRS.map(set_AF_date)
 
-            print(f"\n------------------> update time: {current_time} <-------------------")
-            print(AF.aggregate_array("af_date").distinct().sort().getInfo()[-1])
+    print(f"\n------------------> update time: {current_time} <-------------------")
+    print(AF.aggregate_array("af_date").distinct().sort().getInfo()[-1])
 
-            # time.sleep(60*60) # sleep 1h
+    # time.sleep(60*60) # sleep 1h
 
 
 
